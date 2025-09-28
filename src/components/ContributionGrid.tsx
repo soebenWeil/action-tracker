@@ -34,13 +34,13 @@ export default function ContributionGrid({ completed, total, size = 'medium' }: 
     const isTargetStep = i < total
     
     let cellClass = `${config.cellSize} rounded-sm border transition-colors duration-200 `
-    
+
     if (isCompleted) {
-      cellClass += 'bg-green-500 border-green-600'
+      cellClass += 'bg-emerald-500 border-emerald-400 shadow-emerald-500/40 shadow'
     } else if (isTargetStep) {
-      cellClass += 'bg-gray-100 border-gray-200 hover:bg-gray-150'
+      cellClass += 'bg-neutral-800 border-neutral-700 hover:bg-neutral-700'
     } else {
-      cellClass += 'bg-gray-50 border-gray-100 opacity-30'
+      cellClass += 'bg-neutral-900 border-neutral-800 opacity-30'
     }
     
     cells.push(
@@ -65,11 +65,11 @@ export default function ContributionGrid({ completed, total, size = 'medium' }: 
       </div>
       {size !== 'small' && (
         <div className="mt-4 text-center">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-slate-300">
             {completed} of {total} steps completed
           </div>
           {completed === total && total > 0 && (
-            <div className="text-xs text-green-600 font-medium mt-1">
+            <div className="text-xs text-emerald-300 font-medium mt-1">
               All steps complete! 🎉
             </div>
           )}

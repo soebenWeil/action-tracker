@@ -4,61 +4,90 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-import { storage } from '@/lib/storage'
+import { useSupabase } from '@/components/providers/SupabaseProvider'
+import { useAuth } from '@/components/providers/AuthProvider'
 
 export default function NewGoal() {
+  const supabase = useSupabase()
+  const { session, loading } = useAuth()
+  const router = useRouter()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [targetSteps, setTargetSteps] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const router = useRouter()
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!title.trim() || !targetSteps || parseInt(targetSteps) <= 0) return
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-950 text-slate-100">
+        <div className="animate-pulse text-slate-400">Calibrating goal builder…</div>
+      </div>
+    )
+  }
+
+  if (!session) {
+    router.replace('/login?next=/goals/new')
+    return null
+  }
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    const parsedSteps = parseInt(targetSteps, 10)
+    if (!title.trim() || Number.isNaN(parsedSteps) || parsedSteps <= 0) {
+      return
+    }
 
     setIsSubmitting(true)
-    
-    try {
-      storage.addGoal({
-        title: title.trim(),
-        description: description.trim() || undefined,
-        targetSteps: parseInt(targetSteps),
-        completedSteps: 0
-      })
-      
-      router.push('/')
-    } catch (error) {
-      console.error('Failed to create goal:', error)
-    } finally {
+    setError(null)
+
+    const { error: insertError } = await supabase.from('goals').insert({
+      user_id: session.user.id,
+      title: title.trim(),
+      description: description.trim() ? description.trim() : null,
+      target_steps: parsedSteps,
+    })
+
+    if (insertError) {
+      setError(insertError.message)
       setIsSubmitting(false)
+      return
     }
+
+    setTitle('')
+    setDescription('')
+    setTargetSteps('')
+    router.push('/')
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-md mx-auto px-4 py-4 flex items-center gap-4">
-          <Link href="/" className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
-            <ArrowLeft size={24} className="text-gray-600" />
+    <div className="min-h-screen bg-neutral-950 text-slate-100">
+      <div className="border-b border-neutral-800 bg-neutral-900/70">
+        <div className="mx-auto flex max-w-2xl items-center gap-4 px-4 py-4">
+          <Link href="/" className="rounded-lg border border-neutral-700 p-2 text-slate-300 hover:border-slate-500">
+            <ArrowLeft size={20} />
           </Link>
-          <h1 className="text-xl font-semibold text-gray-900">Create New Goal</h1>
+          <h1 className="text-xl font-semibold text-white">Create New Goal</h1>
         </div>
       </div>
 
-      <div className="max-w-md mx-auto px-4 py-6">
+      <div className="mx-auto max-w-2xl px-4 py-6">
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-              Goal Title *
+            <label htmlFor="title" className="mb-2 block text-sm font-medium text-slate-300">
+              Goal Title
             </label>
             <input
               type="text"
               id="title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-600"
+              onChange={(event) => setTitle(event.target.value)}
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
               placeholder="e.g., Read 12 books this year"
               required
               maxLength={100}
@@ -66,53 +95,53 @@ export default function NewGoal() {
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="description" className="mb-2 block text-sm font-medium text-slate-300">
               Description (optional)
             </label>
             <textarea
               id="description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder-gray-600"
+              onChange={(event) => setDescription(event.target.value)}
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
               rows={3}
-              placeholder="Add more details about your goal..."
+              placeholder="Add more details about your goal…"
               maxLength={500}
             />
           </div>
 
           <div>
-            <label htmlFor="targetSteps" className="block text-sm font-medium text-gray-700 mb-2">
-              Target Steps *
+            <label htmlFor="targetSteps" className="mb-2 block text-sm font-medium text-slate-300">
+              Target Steps
             </label>
             <input
               type="number"
               id="targetSteps"
               value={targetSteps}
-              onChange={(e) => setTargetSteps(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-600"
+              onChange={(event) => setTargetSteps(event.target.value)}
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
               placeholder="e.g., 12"
               required
               min="1"
               max="1000"
             />
-            <p className="text-sm text-gray-700 mt-1">
-              How many actions do you need to complete this goal?
+            <p className="mt-1 text-sm text-slate-400">
+              How many actions lead to completion?
             </p>
           </div>
 
           <div className="flex gap-4 pt-4">
             <Link
               href="/"
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 text-center hover:bg-gray-50 transition-colors"
+              className="flex-1 rounded-lg border border-neutral-700 px-4 py-3 text-center text-sm font-semibold text-slate-200 transition hover:border-slate-500"
             >
               Cancel
             </Link>
             <button
               type="submit"
-              disabled={!title.trim() || !targetSteps || parseInt(targetSteps) <= 0 || isSubmitting}
-              className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-medium transition-colors"
+              disabled={!title.trim() || !targetSteps || parseInt(targetSteps, 10) <= 0 || isSubmitting}
+              className="flex-1 rounded-lg bg-emerald-500/90 px-4 py-3 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? 'Creating...' : 'Create Goal'}
+              {isSubmitting ? 'Creating…' : 'Create Goal'}
             </button>
           </div>
         </form>
